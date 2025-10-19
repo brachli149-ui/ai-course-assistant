@@ -1,8 +1,7 @@
 [theme]
-primaryColor = "#FF6B6B"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F0F2F6"
-textColor = "#262730"
-[server]
-headless = true
-port = 8501
+base="light"                     # "light" oder "dark"
+primaryColor="#5B7CFA"           # Buttons, Highlights
+backgroundColor="#F7F8FB"        # Hauptfläche
+secondaryBackgroundColor="#FFFFFF" # Karten/Sidebar
+textColor="#0E1116"
+font="sans serif"                # ("sans serif", "serif", "mono")
