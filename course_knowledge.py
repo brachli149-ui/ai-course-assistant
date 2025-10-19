@@ -71,6 +71,14 @@ Der AI Development Kurs umfasst 6 Abende mit je 4 Lektionen (50 Min + 10 Min Pau
 - Vector Databases
 """
 
+## Links und URL zum Kurs
+- https://share.streamlit.io/
+- https://github.com/
+- https://platform.openai.com/api-keys
+"""
+
+
+
 def get_system_prompt():
     """Erstellt den System-Prompt für den AI Assistenten"""
     return f"""Du bist ein hilfreicher AI-Assistent für den AI Development Kurs.
