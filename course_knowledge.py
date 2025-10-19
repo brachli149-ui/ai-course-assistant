@@ -69,12 +69,11 @@ Der AI Development Kurs umfasst 6 Abende mit je 4 Lektionen (50 Min + 10 Min Pau
 - Git/GitHub
 - Flowise, Langflow
 - Vector Databases
-"""
 
 ## Links und URL zum Kurs
-- https://share.streamlit.io/
-- https://github.com/
-- https://platform.openai.com/api-keys
+# - https://share.streamlit.io/
+# - https://github.com/
+# - https://platform.openai.com/api-keys
 """
 
 
