@@ -1,65 +1,114 @@
 import os
+import json
+import datetime as dt
+
 import streamlit as st
 from dotenv import load_dotenv
 from course_knowledge import get_system_prompt
 
-# .env laden (falls vorhanden)
+# --------------------------------------------------------------
+# 1️⃣ .env laden (falls vorhanden)
+# --------------------------------------------------------------
 load_dotenv()
 
-# Streamlit-Seite konfigurieren
+# --------------------------------------------------------------
+# 2️⃣ Streamlit-Seite konfigurieren
+# --------------------------------------------------------------
 st.set_page_config(
-    page_title="AI Kurs-Assistent",
+    page_title="AI Kurs-Assistent | Röne Gasser",
     page_icon="ᾑ",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+# --------------------------------------------------------------
+# 3️⃣ CSS Styling
+# --------------------------------------------------------------
+def inject_css():
+    st.markdown(
+        """
+<style>
+.stApp { background: linear-gradient(180deg,#F7F8FB 0%,#F2F4F8 100%); }
+.block-container { max-width: 980px !important; padding-top: 2rem !important; padding-bottom: 5rem !important; }
+section[data-testid="stSidebar"] { width: 320px !important; background:#FFF; border-right:1px solid #E6E8EF; }
+section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { font-weight:700; }
+h1 { letter-spacing:.3px; }
+.app-header-badge{ display:inline-block; padding:4px 10px; border-radius:999px; background:#E9EDFF; color:#3246D3; font-size:12px; margin-left:8px; vertical-align:middle; }
+[data-testid="stChatMessage"]{ border-radius:16px; border:1px solid #E6E8EF; background:#FFF; box-shadow:0 1px 2px rgba(10,14,29,.06); padding:12px 14px; margin:10px 0; }
+[data-testid="stChatInput"] textarea{ border-radius:14px !important; border:1px solid #D8DBE6 !important; background:#FFF !important; box-shadow:none !important; font-size:15px; }
+[data-testid="stChatInput"] button{ border-radius:12px !important; padding:.5rem .9rem !important; font-weight:600; }
+.stButton > button{ border-radius:12px; font-weight:600; padding:.55rem .9rem; border:1px solid #5B7CFA22; box-shadow:0 1px 2px rgba(10,14,29,.06); }
+.stMarkdown pre, .stMarkdown code{ font-size:13px !important; border-radius:10px !important; background:#0F172A !important; color:#E2E8F0 !important; }
+.stMarkdown ul, .stMarkdown ol { margin-top:.25rem; margin-bottom:.25rem; }
+.stMarkdown li { margin:.15rem 0; }
+/* Logo oben */
+.logo {
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:0.5rem;
+}
+.logo img {
+    height:38px;
+    border-radius:8px;
+}
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+inject_css()
+
+# --------------------------------------------------------------
+# 4️⃣ Titel mit Logo & Badge
+# --------------------------------------------------------------
+st.markdown(
+    f"""
+<div class="logo">
+  <img src="https://share.google/images/a1pxUdgaPWDw9TCk7" alt="Logo">
+  <h1 style="display:inline;">ᾑ AI Kurs-Assistent | Röne Gasser <span class='app-header-badge'>Beta</span></h1>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+# --------------------------------------------------------------
+# 5️⃣ AI-Client Initialisierung
+# --------------------------------------------------------------
 def init_ai_client():
-    """Initialisiert den AI-Client basierend auf verfuegbaren API-Schluesseln."""
-    # 1) Zuerst aus Umgebungsvariablen / .env lesen
+    """Initialisiert den AI-Client basierend auf verfügbaren API-Schlüsseln."""
     openai_key = os.getenv("OPENAI_API_KEY")
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-
-    # 2) Optional st.secrets nur versuchen, wenn noch kein Key da ist
     if not openai_key:
-        try:
-            openai_key = st.secrets["OPENAI_API_KEY"]
-        except Exception:
-            pass
+        try: openai_key = st.secrets["OPENAI_API_KEY"]  # type: ignore[index]
+        except Exception: pass
     if not anthropic_key:
-        try:
-            anthropic_key = st.secrets["ANTHROPIC_API_KEY"]
-        except Exception:
-            pass
+        try: anthropic_key = st.secrets["ANTHROPIC_API_KEY"]  # type: ignore[index]
+        except Exception: pass
 
-    # 3) Client initialisieren
     if openai_key:
         try:
             from openai import OpenAI
-            client = OpenAI(api_key=openai_key)
-            return client, "openai"
+            return OpenAI(api_key=openai_key), "openai"
         except ImportError:
-            st.error("OpenAI-Bibliothek nicht installiert. Bitte ueber requirements.txt installieren.")
+            st.error("OpenAI-Bibliothek nicht installiert. Bitte über requirements.txt installieren.")
             return None, None
 
     if anthropic_key:
         try:
             import anthropic
-            client = anthropic.Anthropic(api_key=anthropic_key)
-            return client, "anthropic"
+            return anthropic.Anthropic(api_key=anthropic_key), "anthropic"
         except ImportError:
-            st.error("Anthropic-Bibliothek nicht installiert. Bitte ueber requirements.txt installieren.")
+            st.error("Anthropic-Bibliothek nicht installiert. Bitte über requirements.txt installieren.")
             return None, None
 
-    st.error("Kein API-Schluessel gefunden! Bitte OPENAI_API_KEY oder ANTHROPIC_API_KEY setzen.")
+    st.error("Kein API-Schlüssel gefunden! Bitte OPENAI_API_KEY oder ANTHROPIC_API_KEY setzen.")
     return None, None
 
-
+# --------------------------------------------------------------
+# 6️⃣ AI-Abfrage
+# --------------------------------------------------------------
 def get_ai_response(client, client_type, messages):
-    """Sendet Anfrage an den gewaehlten AI-Service und gibt die Antwort zurueck."""
     try:
         if client_type == "openai":
-            # messages: Liste von {"role": "system"|"user"|"assistant", "content": str}
             resp = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
@@ -69,7 +118,6 @@ def get_ai_response(client, client_type, messages):
             return resp.choices[0].message.content
 
         elif client_type == "anthropic":
-            # Anthropic erwartet system separat, messages ohne "system"
             system_msg = ""
             user_msgs = []
             for m in messages:
@@ -85,37 +133,36 @@ def get_ai_response(client, client_type, messages):
                 system=system_msg,
                 messages=user_msgs,
             )
-            # erste Text-Antwort zurueckgeben
             return getattr(resp.content[0], "text", str(resp))
-
-        else:
-            return "Kein gueltiger AI-Client initialisiert."
-
+        return "Kein gültiger AI-Client initialisiert."
     except Exception as e:
         return f"Fehler bei der AI-Anfrage: {e}"
 
-
+# --------------------------------------------------------------
+# 7️⃣ Hauptfunktion
+# --------------------------------------------------------------
 def main():
     """Hauptfunktion der Streamlit-App."""
-    # Header
-    st.title("ᾑ AI Kurs-Assistent")
-    st.markdown("*Ihr persoenlicher Assistent fuer den AI Development Kurs*")
+    st.markdown("*Ihr persönlicher Assistent für den AI Development Kurs*")
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
     # Sidebar
     with st.sidebar:
-        st.header("ℹ️ Ueber den Assistenten")
+        st.header("ℹ️ Über den Assistenten")
         st.markdown(
             """
 Dieser AI-Assistent hilft bei:
 - **Kursinhalten** und Konzepten  
-- **Uebungen** und Aufgaben  
+- **Übungen** und Aufgaben  
 - **Tools** und Technologien  
 - **Troubleshooting** bei Problemen  
 
 Stellen Sie einfach Ihre Frage!
 """
         )
-        st.header("📅 Kursuebersicht")
+        st.header("📅 Kursübersicht")
         st.markdown(
             """
 **Abend 1:** Grundlagen & No-Code  
@@ -123,50 +170,78 @@ Stellen Sie einfach Ihre Frage!
 **Abend 3:** LangChain & RAG  
 **Abend 4:** Fortgeschrittene Konzepte  
 **Abend 5:** Eigene Projekte  
-**Abend 6:** Praesentationen  
+**Abend 6:** Präsentationen  
 """
         )
 
-    # AI-Client initialisieren
+        st.divider()
+        st.subheader("🧩 Chat-Verlauf")
+
+        # Chat speichern
+        default_name = dt.datetime.now().strftime("chat-%Y%m%d-%H%M%S")
+        export_name = st.text_input("Dateiname", value=default_name, key="export_name")
+        export_json = json.dumps(st.session_state.messages, ensure_ascii=False, indent=2)
+        st.download_button(
+            "⬇️ Verlauf als JSON",
+            data=export_json,
+            file_name=f"{export_name}.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+
+        # Chat laden
+        uploaded = st.file_uploader("Verlauf laden (JSON)", type="json")
+        if uploaded is not None:
+            try:
+                loaded = json.loads(uploaded.read().decode("utf-8"))
+                if isinstance(loaded, list) and all(
+                    isinstance(x, dict) and "role" in x and "content" in x for x in loaded
+                ):
+                    st.session_state.messages = loaded
+                    st.success("Verlauf geladen.")
+                    st.rerun()
+                else:
+                    st.error("Ungültiges Format: erwartet Liste aus {'role','content'}-Objekten.")
+            except Exception as e:
+                st.error(f"Konnte Datei nicht laden: {e}")
+
+        # Verlauf löschen
+        if st.button("🗑️ Verlauf löschen", type="secondary", use_container_width=True):
+            st.session_state.messages = []
+            st.success("Verlauf gelöscht.")
+            st.rerun()
+
+    # Client initialisieren
     client, client_type = init_ai_client()
     if not client:
         st.stop()
 
-    # Chat-Interface
+    # Chatbereich
     st.header("💬 Stellen Sie Ihre Frage")
 
-    # Session State fuer Chat-Verlauf
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # Chat-Verlauf anzeigen
     for m in st.session_state.messages:
         with st.chat_message(m["role"]):
             st.markdown(m["content"])
 
-    # Neue Nachricht
-    prompt = st.chat_input("Ihre Frage zum AI Development Kurs...")
+    prompt = st.chat_input("Ihre Frage zum AI Development Kurs…")
     if prompt:
-        # Nutzerfrage merken & anzeigen
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Antwort erzeugen
         with st.chat_message("assistant"):
-            with st.spinner("Denke nach..."):
+            with st.spinner("Denke nach…"):
                 ai_messages = [{"role": "system", "content": get_system_prompt()}] + st.session_state.messages
                 answer = get_ai_response(client, client_type, ai_messages)
                 st.markdown(answer)
 
-        # Antwort im Verlauf speichern
         st.session_state.messages.append({"role": "assistant", "content": answer})
 
-    # Reset-Button
-    if st.button("🔄 Chat zuruecksetzen"):
-        st.session_state.messages = []
-        st.rerun()
+    st.markdown("")
 
 
+# --------------------------------------------------------------
+# 8️⃣ Start
+# --------------------------------------------------------------
 if __name__ == "__main__":
     main()
